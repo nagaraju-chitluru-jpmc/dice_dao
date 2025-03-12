@@ -32,11 +32,6 @@ contract DiceExt is Dice {
         return luckyTimes[diceId];
     }
     
-    // Function to check if an address is the owner of a specific dice
-    function isDiceOwner(uint256 diceId, address user) public view validDiceId(diceId) returns (bool) {
-        return dices[diceId].owner == user;
-    }
-    
     // Function to destroy dice and return ether
     function destroyDice(uint256 diceId) public ownerOnly(diceId) validDiceId(diceId) {
         uint256 valueToReturn = getDiceValue(diceId);
