@@ -3,6 +3,15 @@ pragma solidity ^0.5.0;
 
 import "./DiceExt.sol";
 
+//Steps:
+//1. Deploy DiceExt.sol using account: 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4
+//2. Add dice with numOfSlides, color by settings value 11000000000000000 wei
+//3. Deply DiceMarket.sol using account: 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2 with Dice contrct and commistion 2
+//4. Transfer Dice owner ship to DiceMarket contrct address by calling from 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4
+//5. List Dice calling from 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4 with dice id 0 and value 11000000000000004
+//6. Buy dice from 0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db with value 11000000000000006
+//7. Add another dice, tranfer ownership, list and call unlist
+
 contract DiceMarket {
     address payable public owner;
     uint256 public commissionFee;
