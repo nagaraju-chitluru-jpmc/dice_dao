@@ -1,96 +1,56 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.5.0;
+pragma solidity ^0.8.0;
 
-contract Dice {
-    
-    enum diceState { stationary, rolling }
-    
-    struct dice {
-        uint8 numberOfSides;
-        uint8 color;
-        uint8 currentNumber;
-        diceState state;
-        uint256 creationValue;
-        address owner;
-        address prevOwner;
-    }
-    
-    event rolling (uint256 diceId);
-    event rolled (uint256 diceId, uint8 newNumber);
-    
-    uint256 public numDices = 0;
-    mapping(uint256 => dice) public dices;
+// Import the updated Dice contract
+import "./Dice.sol";
 
-    //function to create a new dice, and add to 'dices' map. requires at least 0.01ETH to create
-    function add(
-        uint8 numberOfSides,
-        uint8 color
-    ) public payable returns(uint256) {
-        require(numberOfSides > 0);
-        require(msg.value > 0.01 ether, "at least 0.01 ETH is needed to spawn a new dice");
+// Extend the Dice contract using inheritance
+contract DiceExt is Dice {
+    // Map diceId directly to luckyTimes counter
+    mapping(uint256 => uint256) public luckyTimes;
+    
+    // New event for when max number is rolled
+    event luckyTimesEvent(uint256 diceId, uint256 luckyTimesCount);
+    
+    // New event for when dice is destroyed
+    event diceDestroyed(uint256 diceId, address owner, uint256 value);
+    
+    // Override the stopRoll function to track lucky times
+    function stopRoll(uint256 diceId) public override ownerOnly(diceId) validDiceId(diceId) {
+        // Call the parent contract's stopRoll function
+        super.stopRoll(diceId);
         
-        //new dice object
-        dice memory newDice = dice(
-            numberOfSides,
-            color,
-            (uint8)(block.timestamp % numberOfSides) + 1,  //non-secure random number
-            diceState.stationary,
-            msg.value,
-            msg.sender,  //owner
-            address(0)
-        );
+        // Check if max number was rolled (the number of sides is the max value)
+        if (getDiceNumber(diceId) == getDiceSides(diceId)) {
+            luckyTimes[diceId]++; // Increment luckyTimes
+            emit luckyTimesEvent(diceId, luckyTimes[diceId]); // Emit the lucky times event
+        }
+    }
+    
+    // Getter function for luckyTimes
+    function getLuckyTimes(uint256 diceId) public view validDiceId(diceId) returns (uint256) {
+        return luckyTimes[diceId];
+    }
+    
+    // Function to destroy dice and return ether
+    function destroyDice(uint256 diceId) public ownerOnly(diceId) validDiceId(diceId) {
+        uint256 valueToReturn = getDiceValue(diceId);
+        address payable owner = payable(dices[diceId].owner); // Updated for Solidity 0.8.0
         
-        uint256 newDiceId = numDices++;
-        dices[newDiceId] = newDice; //commit to state variable
-        return newDiceId;   //return new diceId
+        emit diceDestroyed(diceId, owner, valueToReturn);
+        
+        // If this is the last dice, simply decrement the counter
+        if (diceId == numDices - 1) {
+            numDices--;
+        } else {
+            // Otherwise, replace the deleted dice with the last dice and decrement the counter
+            dices[diceId] = dices[numDices - 1];
+            // Also move the luckyTimes counter
+            luckyTimes[diceId] = luckyTimes[numDices - 1];
+            numDices--;
+        }
+        
+        // Transfer the creation value back to the owner
+        owner.transfer(valueToReturn);
     }
-
-    //modifier to ensure a function is callable only by its owner    
-    modifier ownerOnly(uint256 diceId) {
-        require(dices[diceId].owner == msg.sender);
-        _;
-    }
-    
-    modifier validDiceId(uint256 diceId) {
-        require(diceId < numDices);
-        _;
-    }
-
-    //owner can roll a dice    
-    function roll(uint256 diceId) public ownerOnly(diceId) validDiceId(diceId) {
-            dices[diceId].state = diceState.rolling;    //set state to rolling
-            dices[diceId].currentNumber = 0;    //number will become 0 while rolling
-            emit rolling(diceId);   //emit rolling event
-    }
-
-    function stopRoll(uint256 diceId) public ownerOnly(diceId) validDiceId(diceId) {
-            dices[diceId].state = diceState.stationary; //set state to stationary
-            
-            //this is not a secure randomization
-            uint8 newNumber = (uint8)((block.timestamp*(diceId+1)) % dices[diceId].numberOfSides) + 1;
-            dices[diceId].currentNumber = newNumber;
-            emit rolled(diceId, newNumber); //emit rolled
-    }
-    
-    //transfer ownership to new owner
-    function transfer(uint256 diceId, address newOwner) public ownerOnly(diceId) validDiceId(diceId) {
-        dices[diceId].prevOwner = dices[diceId].owner;
-        dices[diceId].owner = newOwner;
-    }
-
-    //get number of sides of dice    
-    function getDiceSides(uint256 diceId) public view validDiceId(diceId) returns (uint8) {
-        return dices[diceId].numberOfSides;
-    }
-
-    //get current dice number
-    function getDiceNumber(uint256 diceId) public view validDiceId(diceId) returns (uint8) {
-        return dices[diceId].currentNumber;
-    }
-
-    //get ether put in during creation
-    function getDiceValue(uint256 diceId) public view validDiceId(diceId) returns (uint256) {
-        return dices[diceId].creationValue;
-    }
-    
 }
