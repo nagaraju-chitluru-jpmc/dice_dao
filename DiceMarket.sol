@@ -38,9 +38,7 @@ contract DiceMarket {
     
     // List a dice for sale
     function list(uint256 id, uint256 price) public {
-        // Check that caller is the owner of the dice
-        require(diceContract.isDiceOwner(id, msg.sender), "Only the owner can list the dice");
-        
+     
         // Check price meets minimum requirements (value + commission)
         require(price >= diceContract.getDiceValue(id) + commissionFee, "Price must be at least value + commission fee");
         
